@@ -438,7 +438,8 @@ def BoilMain(main_argv):
 
 
 # TODO: Hook up to completion.
-SUBCOMMANDS = ['translate', 'format', 'deps', 'undefined-vars']
+SUBCOMMANDS = [
+    'translate', 'format', 'deps', 'readlink', 'realpath', 'undefined-vars']
 
 def OshCommandMain(argv):
   """Run an 'oshc' tool.
@@ -448,7 +449,7 @@ def OshCommandMain(argv):
   TODO:
   - oshc --help
 
-  oshc deps 
+  oshc deps
     --path: the $PATH to use to find executables.  What about libraries?
 
     NOTE: we're leaving out su -c, find, xargs, etc.?  Those should generally
@@ -511,6 +512,12 @@ def OshCommandMain(argv):
 
   # stderr: show how we're following imports?
 
+  # For now, we only support the default behavior of `realpath`, which is
+  # equivalent to `readlink -f`.
+  if action == 'realpath':
+    action = 'readlink'
+    # XXX TODO add `-f` to args...how?
+
   if action == 'translate':
     # TODO: FIx this invocation up.
     #debug_spans = opt.debug_spans
@@ -523,6 +530,9 @@ def OshCommandMain(argv):
 
   elif action == 'deps':
     deps.Deps(node)
+
+  elif action == 'readlink':
+    # XXX TODO IMMEDIATE - what?
 
   elif action == 'undefined-vars':  # could be environment variables
     pass

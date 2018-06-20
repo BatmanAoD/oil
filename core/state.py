@@ -509,11 +509,11 @@ class Mem(object):
       # create a new # _StackFrame.
       # See the spec test "Source from inside function."
 
-  def __exit__(self, type, value, traceback):
-    self.func_name_stack.pop()
-    # See comment in '__enter__'.
-    if argv:
-      self.argv_stack.pop()
+    def __exit__(self, type, value, traceback):
+        self.func_name_stack.pop()
+        # See comment in '__enter__'.
+        if argv:
+        self.argv_stack.pop()
 
   def PushSource(self, argv):
     return Mem.Frame_Source(self, argv)

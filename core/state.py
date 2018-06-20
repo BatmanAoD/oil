@@ -503,7 +503,7 @@ class Mem(object):
       # If no *new* arguments are provided, Bash simply re-uses the existing
       # argv array.
       if self.argv:
-        self.argv_stack.append(_ArgFrame(self.argv))
+        self.mem.argv_stack.append(_ArgFrame(self.argv))
       # Bash treats 'locals' in the top-level scope of the sourced file as
       # local to the # scope *from which* the file was sourced, so we do NOT
       # create a new # _StackFrame.
@@ -512,7 +512,7 @@ class Mem(object):
     def __exit__(self, type, value, traceback):
       self.mem.func_name_stack.pop()
       # See comment in '__enter__'.
-      if argv:
+      if self.argv:
         self.mem.argv_stack.pop()
 
   def PushSource(self, argv):

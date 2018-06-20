@@ -486,9 +486,8 @@ class Mem(object):
       self.mem.var_stack.append(_StackFrame(readonly=True))
 
     def __exit__(self, type, value, traceback):
-      if self.more_env:
-        self.mem.var_stack.pop()
-        #util.log('**** PopTemp()')
+      self.mem.var_stack.pop()
+      #util.log('**** PopTemp()')
 
   def PushTemp(self):
     return Mem.Frame_Temp(self)

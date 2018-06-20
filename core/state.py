@@ -452,41 +452,72 @@ class Mem(object):
   # Stack
   #
 
-  def PushCall(self, func_name, argv):
+  class Frame_Call(object):
     """For function calls."""
-    # bash uses this order: top of stack first.
-    self.func_name_stack.append(func_name)
+    def __init__(self, mem, func_name, argv):
+      self.mem = mem
+      self.func_name = func_name
+      self.argv = argv
 
-    self.var_stack.append(_StackFrame())
-    self.argv_stack.append(_ArgFrame(argv))
+    def __enter__(self):
+      # bash uses this order: top of stack first.
+      self.mem.func_name_stack.append(self.func_name)
 
-  def PopCall(self):
-    self.func_name_stack.pop()
+      self.mem.var_stack.append(_StackFrame())
+      self.mem.argv_stack.append(_ArgFrame(self.argv))
 
-    self.var_stack.pop()
-    self.argv_stack.pop()
+    def __exit__(self, type, value, traceback):
+      self.mem.func_name_stack.pop()
+
+      self.mem.var_stack.pop()
+      self.mem.argv_stack.pop()
+
+
+  def PushCall(self, *args, **kwargs):
+    return Mem.Frame_Call(self, *args, **kwargs)
+
+  class Frame_Temp(object):
+    """For the temporary scope in 'FOO=bar BAR=baz echo'."""
+    def __init__(self, mem):
+      self.mem = mem
+
+    def __enter__(self):
+      # We don't want the 'read' builtin to write to this frame!
+      self.mem.var_stack.append(_StackFrame(readonly=True))
+
+    def __exit__(self, type, value, traceback):
+      if self.more_env:
+        self.mem.var_stack.pop()
+        #util.log('**** PopTemp()')
 
   def PushTemp(self):
-    """For the temporary scope in 'FOO=bar BAR=baz echo'."""
-    # We don't want the 'read' builtin to write to this frame!
-    self.var_stack.append(_StackFrame(readonly=True))
+    return Mem.Frame_Temp(self)
 
-  def PopTemp(self):
-    self.var_stack.pop()
-    #util.log('**** PopTemp()')
+  class Frame_Source(object):
+    """For the scope of a file read with 'source' or '.'."""
+    def __init__(self, mem, argv):
+      self.mem = mem
+      self.argv = argv
+
+    def __enter__(self):
+      self.mem.func_name_stack.append("source")
+      # If no *new* arguments are provided, Bash simply re-uses the existing
+      # argv array.
+      if self.argv:
+        self.argv_stack.append(_ArgFrame(self.argv))
+      # Bash treats 'locals' in the top-level scope of the sourced file as
+      # local to the # scope *from which* the file was sourced, so we do NOT
+      # create a new # _StackFrame.
+      # See the spec test "Source from inside function."
+
+  def __exit__(self, type, value, traceback):
+    self.func_name_stack.pop()
+    # See comment in '__enter__'.
+    if argv:
+      self.argv_stack.pop()
 
   def PushSource(self, argv):
-    """For the scope of a file read with 'source' or '.'."""
-    self.func_name_stack.append("source")
-    self.argv_stack.append(_ArgFrame(argv))
-    # Bash treats 'locals' in the top-level scope of the sourced file as
-    # local to the # scope *from which* the file was sourced, so we do NOT
-    # create a new # _StackFrame.
-    # See the spec test "Source from inside function."
-
-  def PopSource(self):
-    self.func_name_stack.pop()
-    self.argv_stack.pop()
+    return Mem.Frame_Source(self, argv)
 
   #
   # Argv

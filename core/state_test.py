@@ -24,9 +24,8 @@ class MemTest(unittest.TestCase):
 
   def testGet(self):
     mem = _InitMem()
-    mem.PushCall('my-func', ['a', 'b'])
-    print(mem.GetVar('HOME'))
-    mem.PopCall()
+    with mem.PushCall('my-func', ['a', 'b']):
+        print(mem.GetVar('HOME'))
     print(mem.GetVar('NONEXISTENT'))
 
   def testPushTemp(self):
@@ -37,27 +36,26 @@ class MemTest(unittest.TestCase):
         runtime.LhsName('x'), runtime.Str('1'), (), scope_e.Dynamic)
     self.assertEqual('1', mem.var_stack[-1].vars['x'].val.s)
 
-    mem.PushTemp()
+    with mem.PushTemp():
 
-    self.assertEqual(2, len(mem.var_stack))
+        self.assertEqual(2, len(mem.var_stack))
 
-    # Temporary frame is readonly
-    self.assertEqual(True, mem.var_stack[-1].readonly)
-    self.assertEqual(False, mem.var_stack[-2].readonly)
+        # Temporary frame is readonly
+        self.assertEqual(True, mem.var_stack[-1].readonly)
+        self.assertEqual(False, mem.var_stack[-2].readonly)
 
-    # x=temp E=3 read x <<< 'line'
-    mem.SetVar(
-        runtime.LhsName('x'), runtime.Str('temp'), (), scope_e.TempEnv)
-    mem.SetVar(
-        runtime.LhsName('E'), runtime.Str('3'), (), scope_e.TempEnv)
-    mem.SetVar(
-        runtime.LhsName('x'), runtime.Str('line'), (), scope_e.LocalOnly)
+        # x=temp E=3 read x <<< 'line'
+        mem.SetVar(
+            runtime.LhsName('x'), runtime.Str('temp'), (), scope_e.TempEnv)
+        mem.SetVar(
+            runtime.LhsName('E'), runtime.Str('3'), (), scope_e.TempEnv)
+        mem.SetVar(
+            runtime.LhsName('x'), runtime.Str('line'), (), scope_e.LocalOnly)
 
-    self.assertEqual('3', mem.var_stack[-1].vars['E'].val.s)
-    self.assertEqual('temp', mem.var_stack[-1].vars['x'].val.s)
-    self.assertEqual('line', mem.var_stack[-2].vars['x'].val.s)
+        self.assertEqual('3', mem.var_stack[-1].vars['E'].val.s)
+        self.assertEqual('temp', mem.var_stack[-1].vars['x'].val.s)
+        self.assertEqual('line', mem.var_stack[-2].vars['x'].val.s)
 
-    mem.PopTemp()
     self.assertEqual(1, len(mem.var_stack))
     self.assertEqual('line', mem.var_stack[-1].vars['x'].val.s)
 
@@ -262,22 +260,21 @@ class MemTest(unittest.TestCase):
     mem.PushCall('my-func', ['a', 'b'])
     self.assertEqual(['a', 'b'], mem.GetArgv())
 
-    mem.PushCall('my-func', ['x', 'y'])
-    self.assertEqual(['x', 'y'], mem.GetArgv())
+    with mem.PushCall('my-func', ['x', 'y']):
+        self.assertEqual(['x', 'y'], mem.GetArgv())
 
-    status = mem.Shift(1)
-    self.assertEqual(['y'], mem.GetArgv())
-    self.assertEqual(0, status)
+        status = mem.Shift(1)
+        self.assertEqual(['y'], mem.GetArgv())
+        self.assertEqual(0, status)
 
-    status = mem.Shift(1)
-    self.assertEqual([], mem.GetArgv())
-    self.assertEqual(0, status)
+        status = mem.Shift(1)
+        self.assertEqual([], mem.GetArgv())
+        self.assertEqual(0, status)
 
-    status = mem.Shift(1)
-    self.assertEqual([], mem.GetArgv())
-    self.assertEqual(1, status)  # error
+        status = mem.Shift(1)
+        self.assertEqual([], mem.GetArgv())
+        self.assertEqual(1, status)  # error
 
-    mem.PopCall()
     self.assertEqual(['a', 'b'], mem.GetArgv())
 
   def testArgv2(self):

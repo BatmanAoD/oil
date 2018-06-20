@@ -249,12 +249,9 @@ class Executor(object):
     try:
       line_reader = reader.FileLineReader(f, self.arena)
       _, c_parser = parse_lib.MakeParser(line_reader, self.arena)
-      self.mem.PushSource(argv[1:])
-      try:
+      with self.mem.PushSource(argv[1:]):
         status = self._EvalHelper(c_parser, path)
         return status
-      finally:
-        self.mem.PopSource()
 
     except _ControlFlow as e:
       if e.IsReturn():
@@ -708,21 +705,15 @@ class Executor(object):
       # with set-o verbose?
       self.tracer.OnSimpleCommand(argv)
 
-      if node.more_env:
-        self.mem.PushTemp()
-      try:
+      with self.mem.PushTemp():
         for env_pair in node.more_env:
-          val = self.word_ev.EvalWordToString(env_pair.val)
-          # Set each var so the next one can reference it.  Example:
-          # FOO=1 BAR=$FOO ls /
-          self.mem.SetVar(ast.LhsName(env_pair.name), val,
-                          (var_flags_e.Exported,), scope_e.TempEnv)
-
+            val = self.word_ev.EvalWordToString(env_pair.val)
+            # Set each var so the next one can reference it.  Example:
+            # FOO=1 BAR=$FOO ls /
+            self.mem.SetVar(ast.LhsName(env_pair.name), val,
+                            (var_flags_e.Exported,), scope_e.TempEnv)
         # NOTE: This might never return!  In the case of fork_external=False.
         status = self._RunSimpleCommand(argv, fork_external)
-      finally:
-        if node.more_env:
-          self.mem.PopTemp()
 
     elif node.tag == command_e.Sentence:
       # Don't check_errexit since this isn't a real node!
@@ -1394,6 +1385,7 @@ class Executor(object):
     # f() { echo hi; } 1>&2
     # f 2>&1
 
+    # TODO move this logic into the `Framce_Call` class.
     def_redirects = self._EvalRedirects(func_node)
     if def_redirects is None:  # error
       return None
@@ -1401,22 +1393,21 @@ class Executor(object):
       if not self.fd_state.Push(def_redirects, self.waiter):
         return 1  # error
 
-    self.mem.PushCall(func_node.name, argv[1:])
-
-    # Redirects still valid for functions.
-    # Here doc causes a pipe and Process(SubProgramThunk).
     try:
-      status = self._Execute(func_node.body)
-    except _ControlFlow as e:
-      if e.IsReturn():
-        status = e.StatusCode()
-      elif e.IsExit():
-        raise
-      else:
-        # break/continue used in the wrong place.
-        e_die('Unexpected %r (in function call)', e.token.val, token=e.token)
+      with self.mem.PushCall(func_node.name, argv[1:]):
+        # Redirects still valid for functions.
+        # Here doc causes a pipe and Process(SubProgramThunk).
+        try:
+          status = self._Execute(func_node.body)
+        except _ControlFlow as e:
+          if e.IsReturn():
+            status = e.StatusCode()
+          elif e.IsExit():
+            raise
+          else:
+            # break/continue used in the wrong place.
+            e_die('Unexpected %r (in function call)', e.token.val, token=e.token)
     finally:
-      self.mem.PopCall()
       if def_redirects:
         self.fd_state.Pop()
 

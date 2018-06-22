@@ -166,17 +166,21 @@ echo 'echo $@' > $lib
 ### Source from inside function
 lib=$TMP/to-be-sourced
 echo 'echo $@' > $lib
+# 'shift' will only apply to the args of 'f()' when no new args are provided.
+echo 'shift' >> $lib
 echo 'local foo=foo_val' >> $lib
-f() { . $lib; . $lib args to src; echo $foo; }
+f() { . $lib; . $lib args to src; echo $@; echo $foo; }
 f args to func
 ## STDOUT:
 args to func
 args to src
+to func
 foo_val
 ## END
 ## N-I dash STDOUT:
 args to func
-args to func
+to func
+func
 foo_val
 ## END
 
